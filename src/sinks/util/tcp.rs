@@ -11,6 +11,7 @@ use futures01::{
 };
 use serde::{Deserialize, Serialize};
 use snafu::Snafu;
+use std::io::Read;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio01::{
@@ -155,7 +156,14 @@ impl TcpSink {
                     }
                 },
                 TcpSinkState::Connected(ref mut connection) => {
-                    return Ok(Async::Ready(connection));
+                    let mut dummy = [0; 0];
+                    match connection.get_mut().read(&mut dummy) {
+                        Ok(_) => return Ok(Async::Ready(connection)),
+                        Err(error) => {
+                            warn!(message = "Connection broken", %error);
+                            TcpSinkState::Disconnected
+                        }
+                    }
                 }
             };
         }
